@@ -924,12 +924,23 @@ function processEmphasis(nodes) {
           }
           if (later) continue;
         }
+        const use0 = (o.n >= 2 && d.n >= 2) ? 2 : 1;
+        // An inner strong/em whose opener was open-only and whose
+        // closer could both open and close blocks an outer match when
+        // the outer closer is no longer than the match ('*a **b**c*':
+        // the outer '*'s stay literal, only the inner '**' is strong).
+        let blocked = false;
+        for (let bj = oi + 1; bj < di; bj++) {
+          const nb = nodes[bj];
+          if (nb.t === 'strong' && nb.ch === d.ch && nb.openerOpenOnly && nb.closerBoth && use0 === 1) { blocked = true; break; }
+        }
+        if (blocked) break;
         const use = (o.n >= 2 && d.n >= 2) ? 2 : 1;
         const tag = d.ch === '~' ? 'del' : (use === 2 ? 'strong' : 'em');
         const children = nodes.slice(oi + 1, di);
         const rep = [];
         if (o.n > use) rep.push({ t: 'delim', ch: o.ch, n: o.n - use, open: o.open, close: o.close });
-        rep.push({ t: tag, children });
+        rep.push({ t: tag, children, ch: d.ch, openerOpenOnly: o.open && !o.close, closerBoth: d.open && d.close, use });
         if (d.n > use) rep.push({ t: 'delim', ch: d.ch, n: d.n - use, open: d.open, close: d.close });
         nodes.splice(oi, di - oi + 1, ...rep);
         matched = true;
