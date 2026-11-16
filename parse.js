@@ -1464,7 +1464,7 @@ function parseBlocks(src) {
         // the new block is content inside every open item, so a blank
         // line no longer separates those items from what follows (cm-319)
         for (let k2 = 1; k2 < stack.length; k2++) {
-          if (stack[k2].t === 'item') stack[k2].blankAfterContent = false;
+          if (stack[k2].t === 'item') { stack[k2].blankAfterContent = false; stack[k2].blankDirect = false; }
         }
       }
       const ind = indentCols(L);
@@ -1511,7 +1511,13 @@ function parseBlocks(src) {
           list = top;
           if (list.blankAfterContent) list.loose = true;
           const lastIt = list.children[list.children.length - 1];
-          if (lastIt && lastIt.blankAfterContent) list.loose = true;
+          if (lastIt && lastIt.blankDirect) list.loose = true;
+          if (lastIt) lastIt.blankDirect = false;
+          // a new item in a nested list consumes the blank for the
+          // outer items too: the blank was inside this list's scope,
+          // so it does not separate the outer items (cm-319)
+          const liIdx = stack.indexOf(list);
+          if (liIdx > 0) for (let k2 = 1; k2 < liIdx; k2++) if (stack[k2].t === 'item') stack[k2].blankDirect = false;
           list.blankAfterContent = false;
         } else {
           list = {
@@ -1521,7 +1527,7 @@ function parseBlocks(src) {
           };
           stack.push(list);
         }
-        const item = { t: 'item', children: [], contentIndent: 0, blankAfterContent: false, task: null };
+        const item = { t: 'item', children: [], contentIndent: 0, blankAfterContent: false, blankDirect: false, task: null };
         // consume the marker
         const baseCol = L.col;
         L.pos = cp.pos + li.markerLen;
@@ -1609,6 +1615,7 @@ function parseBlocks(src) {
         for (let k2 = stack.length - 1; k2 > dq; k2--) {
           if (stack[k2].t === 'item') {
             stack[k2].blankAfterContent = true;
+            stack[k2].blankDirect = true;
             if (deepestItem === -1) deepestItem = k2;
           }
         }
