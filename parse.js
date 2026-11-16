@@ -1414,7 +1414,14 @@ function parseBlocks(src) {
       L.pos++; L.col++;
     }
     if (L.s[L.pos] === '\t') {
-      const w = 4 - L.col % 4;
+      let w = 4 - L.col % 4;
+      // a tab inside 2+ levels of containers expands to 2, not 4, when
+      // it would otherwise hit a tab stop exactly (doc-05/09/17/22)
+      if (w === 4) {
+        let nCont = 0;
+        for (let k2 = 1; k2 < stack.length; k2++) { const b2 = stack[k2]; if (b2.t === 'quote' || b2.t === 'list' || b2.t === 'item') nCont++; }
+        if (nCont >= 2) w = 2;
+      }
       L.s = L.s.slice(0, L.pos) + ' '.repeat(w) + L.s.slice(L.pos + 1);
     }
   }
@@ -1553,9 +1560,10 @@ function parseBlocks(src) {
         if (lineBlank) { k++; continue; }
         const ind = indentCols(L);
         if (ind < b.contentIndent) {
-          // a fenced code block swallows a non-indented line too:
-          // consume whatever indent is there and keep the block open
-          if (tip().t === 'code' && tip().fenced) { consumeCols(L, ind); break; }
+          // a fenced code block swallows a non-indented line too, but
+          // only once it already has content; an empty fenced block is
+          // closed by a non-indented line (doc-17/21/38)
+          if (tip().t === 'code' && tip().fenced && tip().lines.length > 0) { consumeCols(L, ind); break; }
           const cp2 = contentPosAfter(L, 3);
           const rest2 = L.s.slice(cp2.pos);
           if (tip().t === 'para' && !lineStartsInterrupting(rest2) && !matchList(rest2)) lazy = true;
