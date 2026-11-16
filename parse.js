@@ -773,7 +773,7 @@ function scanInline(s, refs) {
             } else { ok = false; break; }
           }
           if (ok && need === 0 && txt === local) {
-            const hasOpenUs = nodes.some(nd => nd.t === 'delim' && nd.ch === '_' && nd.n >= 2);
+            const hasOpenUs = nodes.some(nd => nd.t === 'delim' && nd.ch === '_' && nd.open);
             let em = parseBareEmail(s, ls, hasOpenUs);
             if (em) {
               // email inside __...__: the leading '__' is the strong
@@ -1320,6 +1320,8 @@ function extractRefDefs(text, refs) {
 // ---------- block parsing driver ----------
 // Node kinds: doc, para, heading, code, html, hr, quote, list, item, table.
 function parseBlocks(src) {
+  // normalise line endings: CRLF and lone CR are both line breaks
+  src = src.replace(/\r\n?/g, '\n');
   const refs = new Map();
   const doc = { t: 'doc', children: [] };
   const stack = [doc];
@@ -1328,7 +1330,8 @@ function parseBlocks(src) {
   const endsNL = src.endsWith('\n');
   if (endsNL) rawLines.pop();
   const lines = rawLines.map((s, idx) => ({
-    s, nl: idx < rawLines.length - 1 || endsNL,
+    // strip a trailing CR: CRLF is one line ending, not content
+    s: s.endsWith('\r') ? s.slice(0, -1) : s, nl: idx < rawLines.length - 1 || endsNL,
   }));
   // --- finalisation helpers ---
   function addToParent(node, parent) {
